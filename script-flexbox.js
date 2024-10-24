@@ -510,7 +510,6 @@ function syncSubtitlesWithScroll(videoElement, captions, h5pDocument, type, slid
 }
 
 function addCustomSubtitleOption(h5pDocument) {
-
     const captionsControl = h5pDocument.querySelector('.h5p-control.h5p-captions');
     if (!captionsControl) {
         console.log('No se encontró el control de subtítulos.');
@@ -523,6 +522,7 @@ function addCustomSubtitleOption(h5pDocument) {
         return;
     }
 
+    // Crear una nueva opción en el menú de subtítulos
     const customOption = h5pDocument.createElement('li');
     customOption.textContent = 'Transcripción';
     customOption.style.marginLeft = '8px';
@@ -531,26 +531,65 @@ function addCustomSubtitleOption(h5pDocument) {
     customOption.setAttribute('aria-checked', 'false');
     customOption.style.cursor = 'pointer';
 
+    // Añadir evento al hacer clic en la nueva opción
     customOption.addEventListener('click', () => {
         const colText = h5pDocument.getElementById('captions-container-iv');
         const colH5P = h5pDocument.getElementById('col-h5p');
+        const videoElement = h5pDocument.querySelector('video');
+
+        if (!colText || !colH5P || !videoElement) {
+            console.error("No se encontró alguno de los elementos requeridos (colText, colH5P, videoElement).");
+            return;
+        }
 
         if (colText.classList.contains('d-none')) {
+            // Mostrar subtítulos y reducir la columna de video
             colText.classList.remove('d-none');
             colH5P.classList.remove('col-sm-12');
             colH5P.classList.add('col-sm-8');
             colH5P.style.width = ''; 
+            videoElement.style.height = 'auto'; // Ajusta el video a su tamaño normal
             customOption.setAttribute('aria-checked', 'true');
         } else {
+            // Ocultar subtítulos y ampliar la columna de video
             colText.classList.add('d-none');
             colH5P.style.width = '100%';
             colH5P.classList.remove('col-sm-8');
             colH5P.classList.add('col-sm-12');
+
+            // Aquí calculamos la altura exacta del video para evitar que se corte
+            adjustVideoHeight(colH5P, videoElement);
+
             customOption.setAttribute('aria-checked', 'false');
         }
+
+        // Forzar el ajuste del contenedor después del cambio
+        colH5P.style.display = 'flex';
+        colH5P.style.alignItems = 'center';
+        colH5P.style.justifyContent = 'center';
+
+        console.log('Subtítulos alternados y el video ajustado.');
     });
 
     captionsMenu.appendChild(customOption);
+}
+
+// Función para ajustar dinámicamente la altura del video
+function adjustVideoHeight(container, videoElement) {
+    const containerHeight = container.offsetHeight; // Altura total disponible en el contenedor
+    const videoAspectRatio = videoElement.videoWidth / videoElement.videoHeight; // Relación de aspecto del video
+
+    const newVideoHeight = containerHeight; // Queremos que el video ocupe todo el contenedor verticalmente
+    const newVideoWidth = newVideoHeight * videoAspectRatio; // Calculamos el nuevo ancho basado en la relación de aspecto
+
+    videoElement.style.height = `${newVideoHeight}px`; // Asignamos la nueva altura
+    videoElement.style.width = `${newVideoWidth}px`; // Asignamos el nuevo ancho
+
+    // Asegurarse de que el video se ajuste correctamente
+    videoElement.style.objectFit = 'contain'; // Esto previene recortes indeseados
+    videoElement.style.overflow = 'hidden';
+
+    console.log(`Video ajustado a ${newVideoWidth}px x ${newVideoHeight}px.`);
 }
 
 
@@ -662,3 +701,28 @@ function createGridLayout(h5pDocument, slide, videoElement, captions, slideIndex
     return container;
 }
 */
+
+function setIframeHeight() {
+    const interval = setInterval(() => {
+        const iframeWrapper = document.querySelector('.h5p-iframe-wrapper');
+        if (iframeWrapper) {
+            const iframe = iframeWrapper.querySelector('iframe');
+            if (iframe) {
+                clearInterval(interval);
+                console.log("iframe encontrado dentro del wrapper");
+                iframe.style.height = '550px';
+                console.log('Altura del iframe modificada');
+            } else {
+                console.log('Buscando el iframe...');
+            }
+        } else {
+            console.log('Buscando el wrapper...');
+        }
+    }, 500);
+}
+
+window.addEventListener('load', setIframeHeight);
+
+
+
+
