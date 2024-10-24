@@ -35,7 +35,7 @@ window.onload = function () {
                 }
 
                 setTimeout(() => {
-                    adjustHeights(h5pDocument);
+                    adjustHeights(h5pDocument); 
                 }, 500);
 
                 h5pContent.contentWindow.addEventListener('resize', () => adjustHeights(h5pDocument));
@@ -159,25 +159,96 @@ function initializeCoursePresentation(h5pDocument) {
 function setupContainerLayout(h5pDocument, h5pContainer, captionsContainerId) {
     const container = h5pDocument.createElement('div');
     container.style.display = 'flex';
-    container.style.flexDirection = 'row'; // Cambiado a flexbox
+    container.style.flexDirection = 'row';
     container.style.maxHeight = '100vh';
     h5pDocument.body.appendChild(container);
 
     const colH5P = h5pDocument.createElement('div');
-    colH5P.style.flex = '1 1 70%'; // Ajustar el tamaño según necesites
+    colH5P.style.flex = '1 1 70%';
+    colH5P.id = 'col-h5p';
+    colH5P.style.maxHeight = '100%';
     colH5P.appendChild(h5pContainer);
     container.appendChild(colH5P);
 
     const colText = h5pDocument.createElement('div');
     colText.id = captionsContainerId;
-    colText.style.flex = '1 1 30%'; // Ajustar el tamaño según necesites
+    colText.style.flex = '1 1 30%'; 
+    colText.style.display = 'flex';  
+    colText.style.flexDirection = 'column';
+    colText.style.maxHeight = '100vh';
+
+    const captionsContainer = h5pDocument.createElement('div');
+    captionsContainer.id = 'captions-content';
+    captionsContainer.style.flexGrow = '1';
+    captionsContainer.style.overflowY = 'auto';
+    captionsContainer.style.padding = '10px';
+
+    colText.appendChild(captionsContainer);
+    container.appendChild(colText);
+
+    return captionsContainer;
+}
+
+function createFlexLayout(h5pDocument, slide, videoElement, captions, slideIndex) {
+    const container = h5pDocument.createElement('div');
+    container.style.display = 'flex';
+    container.style.flexDirection = 'row';
+    container.style.height = '100vh';
+
+    const colVideo = h5pDocument.createElement('div');
+    colVideo.style.flex = '1 1 70%';
+    colVideo.style.display = 'flex';
+    colVideo.style.alignItems = 'center';
+    colVideo.style.justifyContent = 'center';
+    colVideo.style.overflow = 'hidden';
+    videoElement.style.height = 'auto';
+    videoElement.style.maxHeight = '100%';
+    videoElement.controls = true;
+    colVideo.appendChild(videoElement);
+    container.appendChild(colVideo);
+
+    const colText = h5pDocument.createElement('div');
+    colText.id = `captions-container-slide-${slideIndex}`;
+    colText.style.flex = '1 1 30%';
     colText.style.overflowY = 'auto';
     container.appendChild(colText);
 
-    return colText;
+    captions.forEach((caption, index) => {
+        const listItem = h5pDocument.createElement('div');
+        listItem.classList.add('transcription-item');
+        listItem.setAttribute('role', 'listitem');
+        listItem.id = `caption-slide-${slideIndex}-${index}`;
+
+        const leftColumn = h5pDocument.createElement('div');
+        leftColumn.classList.add('left-column');
+        const timeButton = h5pDocument.createElement('button');
+        timeButton.classList.add('timestamp-button');
+        timeButton.textContent = formatTime(caption.start);
+        timeButton.onclick = () => {
+            videoElement.currentTime = caption.start;
+            videoElement.play();
+        };
+        leftColumn.appendChild(timeButton);
+
+        const rightColumn = h5pDocument.createElement('div');
+        rightColumn.classList.add('right-column');
+        rightColumn.textContent = caption.text.trim();
+
+        rightColumn.onclick = () => {
+            videoElement.currentTime = caption.start;
+            videoElement.play();
+        };
+
+        listItem.appendChild(leftColumn);
+        listItem.appendChild(rightColumn);
+        colText.appendChild(listItem);
+    });
+
+    return container;
 }
 
 function addCustomSubtitleOption(h5pDocument) {
+
     const captionsControl = h5pDocument.querySelector('.h5p-control.h5p-captions');
     if (!captionsControl) {
         console.log('No se encontró el control de subtítulos.');
@@ -190,20 +261,32 @@ function addCustomSubtitleOption(h5pDocument) {
         return;
     }
 
+    // Crear una nueva opción en el menú de subtítulos
     const customOption = h5pDocument.createElement('li');
     customOption.textContent = 'Transcripción';
+    customOption.style.marginLeft = '8px';
+    customOption.style.alignItems = 'center';
+    customOption.setAttribute('tabindex', '0');
+    customOption.setAttribute('aria-checked', 'false');
     customOption.style.cursor = 'pointer';
 
+    // Añadir evento al hacer clic en la nueva opción
     customOption.addEventListener('click', () => {
         const colText = h5pDocument.getElementById('captions-container-iv');
         const colH5P = h5pDocument.getElementById('col-h5p');
 
-        if (colText.style.display === 'none' || colText.style.display === '') {
-            colText.style.display = 'block'; // Mostrar subtítulos
-            colH5P.style.flex = '0 0 calc(100% - 300px)'; // Ajustar ancho de video
+        if (colText.classList.contains('d-none')) {
+            // Mostrar subtítulos y reducir la columna de video
+            colText.classList.remove('d-none');
+            colH5P.classList.remove('col-sm-12');
+            colH5P.classList.add('col-sm-8');
+            customOption.setAttribute('aria-checked', 'true');
         } else {
-            colText.style.display = 'none'; // Ocultar subtítulos
-            colH5P.style.flex = '1'; // Columna de video a 100%
+            // Ocultar subtítulos y ampliar la columna de video
+            colText.classList.add('d-none');
+            colH5P.classList.remove('col-sm-8');
+            colH5P.classList.add('col-sm-12');
+            customOption.setAttribute('aria-checked', 'false');
         }
     });
 
@@ -239,91 +322,343 @@ function setupCaptions(h5pDocument, captions, colText, type) {
             background: none;
             border: none;
             color: #0078d4;
+            font-weight: bold;
             cursor: pointer;
-            text-decoration: underline;
+            font-size: 14px;
         }
 
-        .timestamp-button:hover {
-            color: #0056b3;
+        .right-column {
+            flex: 5;
+            font-size: 14px;
+            color: #333;
+            padding-left: 8px; 
+            text-align: justify;
+        }
+
+        .highlighted {
+            background-color: #cae4e8;
+            font-weight: bold;
         }
     `;
     h5pDocument.head.appendChild(style);
 
     captions.forEach((caption, index) => {
-        const item = h5pDocument.createElement('div');
-        item.className = 'transcription-item';
-        item.style.width = '100%';
 
-        const timestampButton = h5pDocument.createElement('button');
-        timestampButton.className = 'timestamp-button';
-        timestampButton.innerHTML = caption.start;
-        timestampButton.onclick = () => {
+        const listItem = h5pDocument.createElement('div');
+        listItem.classList.add('transcription-item');
+        listItem.setAttribute('role', 'listitem');
+        listItem.id = `caption-${index}`;
+
+        const leftColumn = h5pDocument.createElement('div');
+        leftColumn.classList.add('left-column');
+        const timeButton = h5pDocument.createElement('button');
+        timeButton.classList.add('timestamp-button');
+        timeButton.textContent = formatTime(caption.start);
+        timeButton.onclick = () => {
             const videoElement = h5pDocument.querySelector('video');
-            if (videoElement) {
-                videoElement.currentTime = caption.startTime;
-            }
+            videoElement.currentTime = caption.start;
+            videoElement.play();
+        };
+        leftColumn.appendChild(timeButton);
+
+        const rightColumn = h5pDocument.createElement('div');
+        rightColumn.classList.add('right-column');
+        rightColumn.textContent = caption.text.trim();
+        rightColumn.onclick = () => {
+            const videoElement = h5pDocument.querySelector('video');
+            videoElement.currentTime = caption.start;
+            videoElement.play();
         };
 
-        const textColumn = h5pDocument.createElement('div');
-        textColumn.className = 'left-column';
-        textColumn.innerText = caption.text;
+        listItem.appendChild(leftColumn);
+        listItem.appendChild(rightColumn);
 
-        item.appendChild(timestampButton);
-        item.appendChild(textColumn);
-        colText.appendChild(item);
+        colText.appendChild(listItem);
     });
+
+    const videoElement = h5pDocument.querySelector('video');
+    videoElement.addEventListener('timeupdate', () => {
+        const currentTime = videoElement.currentTime;
+        captions.forEach((caption, index) => {
+            const listItem = h5pDocument.getElementById(`caption-${index}`);
+            if (currentTime >= caption.start && currentTime <= caption.end) {
+                listItem.classList.add('highlighted');
+
+                colText.scrollTo({
+                    top: listItem.offsetTop - colText.clientHeight / 2 + listItem.clientHeight / 2,
+                    behavior: 'smooth'
+                });
+            } else {
+                listItem.classList.remove('highlighted');
+            }
+        });
+    });
+
+
 }
 
-function syncSubtitlesWithScroll(videoElement, captions, h5pDocument, type, slideIndex) {
-    const currentTime = videoElement.currentTime;
-
-    captions.forEach(caption => {
-        if (currentTime >= caption.startTime && currentTime <= caption.endTime) {
-            highlightCaption(caption.text, h5pDocument, type, slideIndex);
-        }
-    });
-}
-
-function highlightCaption(text, h5pDocument, type, slideIndex) {
-    const transcriptionItems = h5pDocument.querySelectorAll('.transcription-item');
-    transcriptionItems.forEach(item => {
-        item.style.fontWeight = 'normal'; // Reset estilo
-        if (item.innerText === text) {
-            item.style.fontWeight = 'bold'; // Resaltar
-        }
-    });
+function formatTime(seconds) {
+    const minutes = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
 }
 
 function processVTT(vttData) {
-    const captions = [];
     const lines = vttData.split('\n');
+    const captions = [];
     let currentCaption = null;
 
-    lines.forEach(line => {
-        const timeMatch = line.match(/(\d+:\d{2}:\d{2}\.\d{3}) --> (\d+:\d{2}:\d{2}\.\d{3})/);
-        if (timeMatch) {
+    for (let i = 0; i < lines.length; i++) {
+        let line = lines[i].trim();
+
+        if (line === 'WEBVTT' || line === '') continue;
+
+        if (line.match(/^[a-f0-9-]+$/) && i + 1 < lines.length) {
+            i++;
+            line = lines[i].trim();
+        }
+
+        if (line.includes('-->')) {
             if (currentCaption) {
                 captions.push(currentCaption);
             }
+            const times = line.split(' --> ');
             currentCaption = {
-                start: timeMatch[1],
-                startTime: convertVTTTimeToSeconds(timeMatch[1]),
-                endTime: convertVTTTimeToSeconds(timeMatch[2]),
+                start: parseTime(times[0].trim()),
+                end: parseTime(times[1].trim()),
                 text: ''
             };
-        } else if (currentCaption) {
+        }
+        else if (line.length > 0 && currentCaption) {
             currentCaption.text += line + ' ';
         }
-    });
-
-    if (currentCaption) {
-        captions.push(currentCaption);
     }
+
+    if (currentCaption) captions.push(currentCaption);
 
     return captions;
 }
 
-function convertVTTTimeToSeconds(time) {
-    const parts = time.split(':');
-    return parseFloat(parts[0]) * 3600 + parseFloat(parts[1]) * 60 + parseFloat(parts[2]);
+function parseTime(timeString) {
+    const timeParts = timeString.split(":");
+    if (timeParts.length === 3) {
+        const hours = parseInt(timeParts[0], 10) * 3600;
+        const minutes = parseInt(timeParts[1], 10) * 60;
+        const secondsParts = timeParts[2].split('.');
+        const seconds = parseInt(secondsParts[0], 10);
+        const milliseconds = secondsParts[1] ? parseInt(secondsParts[1], 10) / 1000 : 0;
+        return hours + minutes + seconds + milliseconds;
+    } else if (timeParts.length === 2) {
+        const minutes = parseInt(timeParts[0], 10) * 60;
+        const secondsParts = timeParts[1].split('.');
+        const seconds = parseInt(secondsParts[0], 10);
+        const milliseconds = secondsParts[1] ? parseInt(secondsParts[1], 10) / 1000 : 0;
+        return minutes + seconds + milliseconds;
+    }
+    return 0;
 }
+
+function syncSubtitlesWithScroll(videoElement, captions, h5pDocument, type, slideIndex = null) {
+    const colTextId = slideIndex !== null ? `captions-container-slide-${slideIndex}` : `captions-container-${type}`;
+    const colText = h5pDocument.getElementById(colTextId);
+    console.log(`[${type}] Contenedor de subtítulos encontrado:`, colText ? "Sí" : "No");
+
+    let isUserInteracting = false;
+    let inactivityTimeout;
+
+    const handleTimeUpdate = () => {
+        const currentTime = videoElement.currentTime;
+        if (!colText) return;
+
+        captions.forEach((caption, index) => {
+            const captionId = slideIndex !== null ? `caption-slide-${slideIndex}-${index}` : `caption-${type}-${index}`;
+            const captionElement = h5pDocument.getElementById(captionId);
+            if (!captionElement) return;
+
+            if (currentTime >= caption.start && currentTime <= caption.end) {
+                captionElement.style.fontWeight = 'bold';
+                captionElement.style.backgroundColor = '#a9c1c7';
+
+                if (!isUserInteracting) {
+                    const scrollTo = captionElement.offsetTop - (colText.clientHeight / 2) + (captionElement.offsetHeight / 2);
+                    colText.scrollTo({ top: scrollTo, behavior: 'smooth' });
+                    console.log(`[${type}] Subtítulo centrado en índice ${index}`);
+                }
+            } else {
+                captionElement.style.fontWeight = 'normal';
+                captionElement.style.backgroundColor = 'transparent';
+            }
+        });
+    };
+
+    videoElement.addEventListener('timeupdate', handleTimeUpdate);
+
+    const resetInactivityTimer = () => {
+        if (inactivityTimeout) clearTimeout(inactivityTimeout);
+        isUserInteracting = true;
+
+        inactivityTimeout = setTimeout(() => {
+            isUserInteracting = false;
+            console.log(`[${type}] Usuario inactivo. Centrando subtítulo nuevamente.`);
+        }, 3500);
+    };
+
+    if (colText) {
+        colText.addEventListener('scroll', resetInactivityTimer);
+        colText.addEventListener('mousemove', resetInactivityTimer);
+    }
+}
+
+function addCustomSubtitleOption(h5pDocument) {
+
+    const captionsControl = h5pDocument.querySelector('.h5p-control.h5p-captions');
+    if (!captionsControl) {
+        console.log('No se encontró el control de subtítulos.');
+        return;
+    }
+
+    const captionsMenu = h5pDocument.querySelector('.h5p-chooser.h5p-captions ol');
+    if (!captionsMenu) {
+        console.log('No se encontró el menú de subtítulos.');
+        return;
+    }
+
+    const customOption = h5pDocument.createElement('li');
+    customOption.textContent = 'Transcripción';
+    customOption.style.marginLeft = '8px';
+    customOption.style.alignItems = 'center';
+    customOption.setAttribute('tabindex', '0');
+    customOption.setAttribute('aria-checked', 'false');
+    customOption.style.cursor = 'pointer';
+
+    customOption.addEventListener('click', () => {
+        const colText = h5pDocument.getElementById('captions-container-iv');
+        const colH5P = h5pDocument.getElementById('col-h5p');
+
+        if (colText.classList.contains('d-none')) {
+            colText.classList.remove('d-none');
+            colH5P.classList.remove('col-sm-12');
+            colH5P.classList.add('col-sm-8');
+            colH5P.style.width = ''; 
+            customOption.setAttribute('aria-checked', 'true');
+        } else {
+            colText.classList.add('d-none');
+            colH5P.style.width = '100%';
+            colH5P.classList.remove('col-sm-8');
+            colH5P.classList.add('col-sm-12');
+            customOption.setAttribute('aria-checked', 'false');
+        }
+    });
+
+    captionsMenu.appendChild(customOption);
+}
+
+
+/* ANTIGUO GRID PARA -> CP
+function createGridLayout(h5pDocument, slide, videoElement, captions, slideIndex) {
+    const container = h5pDocument.createElement('div');
+    container.classList.add('container-fluid');
+
+    const row = h5pDocument.createElement('div');
+    row.classList.add('row');
+    container.appendChild(row);
+
+    const colVideo = h5pDocument.createElement('div');
+    colVideo.classList.add('col-12', 'col-sm-8');
+    colVideo.style.display = 'flex';
+    colVideo.style.alignItems = 'center';
+    colVideo.style.justifyContent = 'center';
+    colVideo.style.minHeight = 'auto';
+    colVideo.style.overflow = 'hidden';
+    videoElement.style.height = 'auto';
+    videoElement.style.maxHeight = '100%';
+    videoElement.controls = true;
+    colVideo.appendChild(videoElement);
+    row.appendChild(colVideo);
+
+    const colText = h5pDocument.createElement('div');
+    colText.classList.add('col-12', 'col-sm-4');
+    colText.id = `captions-container-slide-${slideIndex}`;
+    colText.style.overflowY = 'auto';
+    colText.style.flexGrow = '1';
+    row.appendChild(colText);
+
+    const style = h5pDocument.createElement('style');
+    style.type = 'text/css';
+    style.innerHTML = `
+    
+        .container-fluid, .row, .col-12, .col-sm-8, .col-sm-4 {
+        height: 100vh !important;
+       }
+        .transcription-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            padding: 6px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .transcription-item:hover {
+            background-color: #f0f0f0;
+        }
+        .left-column {
+            flex: 1;
+            text-align: center;
+        }
+        .timestamp-button {
+            background: none;
+            border: none;
+            color: #0078d4;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .right-column {
+            flex: 5;
+            font-size: 14px;
+            color: #333;
+            padding-left: 8px;
+            text-align: justify;
+        }
+        .highlighted {
+            background-color: #cae4e8;
+            font-weight: bold;
+        }
+    `;
+    h5pDocument.head.appendChild(style);
+
+    captions.forEach((caption, index) => {
+        const listItem = h5pDocument.createElement('div');
+        listItem.classList.add('transcription-item');
+        listItem.setAttribute('role', 'listitem');
+        listItem.id = `caption-slide-${slideIndex}-${index}`;
+
+        const leftColumn = h5pDocument.createElement('div');
+        leftColumn.classList.add('left-column');
+        const timeButton = h5pDocument.createElement('button');
+        timeButton.classList.add('timestamp-button');
+        timeButton.textContent = formatTime(caption.start);
+        timeButton.onclick = () => {
+            videoElement.currentTime = caption.start;
+            videoElement.play();
+        };
+        leftColumn.appendChild(timeButton);
+
+        const rightColumn = h5pDocument.createElement('div');
+        rightColumn.classList.add('right-column');
+        rightColumn.textContent = caption.text.trim();
+
+        rightColumn.onclick = () => {
+            videoElement.currentTime = caption.start;
+            videoElement.play();
+        };
+
+        listItem.appendChild(leftColumn);
+        listItem.appendChild(rightColumn);
+        colText.appendChild(listItem);
+    });
+
+    return container;
+}
+*/
