@@ -84,9 +84,11 @@ function placeResourcesInSections(sectionA, sectionB, interactiveVideoContainer,
 // Agrega opciones de transcripción y controles de tamaño de fuente en el menú de subtítulos
 function createTranscriptionAndFontSizeOptions(h5pDocument, menuList, sectionA, sectionB) {
     console.info("Agregando opciones de transcripción y controles de tamaño de fuente al menú de subtítulos...");
-
+    
+    sectionB.style.display = 'block';
     const transcriptionOption = h5pDocument.createElement('li');
     transcriptionOption.setAttribute('role', 'menuitemradio');
+    transcriptionOption.setAttribute('aria-checked', 'true');
     transcriptionOption.textContent = 'Transcripción';
     transcriptionOption.style.cursor = 'pointer';
     transcriptionOption.addEventListener('click', () => toggleTranscriptionVisibility(sectionA, sectionB, transcriptionOption));
@@ -128,7 +130,7 @@ function toggleTranscriptionVisibility(sectionA, sectionB, transcriptionOption) 
     sectionB.style.display = isVisible ? 'block' : 'none';
     sectionA.style.width = isVisible ? '66.66%' : '100%';
     transcriptionOption.setAttribute('aria-checked', isVisible.toString());
-    console.info(`Transcripción ${isVisible ? "mostrada" : "ocultada"}.`);
+    console.info(`Transcripción ${isVisible ? "mostrada" : "ocultada"}. aria-checked=${isVisible}`);
 }
 
 // Ajusta el tamaño de la fuente en la sección de transcripción
