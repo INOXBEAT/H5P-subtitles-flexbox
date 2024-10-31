@@ -44,3 +44,48 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }, 1000);
 });
+
+// Crea un contenedor principal que se ajuste al ancho del body
+function createMainContainer() {
+    const mainContainer = document.createElement('div');
+    mainContainer.style.width = '100%';
+    mainContainer.style.boxSizing = 'border-box';
+    mainContainer.style.padding = '10px';
+    mainContainer.id = 'main-flex-container';
+    document.body.appendChild(mainContainer);
+    console.log("Contenedor principal creado y ajustado al ancho del body:", mainContainer);
+    return mainContainer;
+}
+
+// Crea un flexbox dentro del contenedor principal con dos secciones A (2/3) y B (1/3)
+function createFlexboxSections(mainContainer) {
+    const flexContainer = document.createElement('div');
+    flexContainer.style.display = 'flex';
+    flexContainer.style.width = '100%';
+
+    const sectionA = document.createElement('div');
+    sectionA.style.width = '66.67%';
+    sectionA.style.boxSizing = 'border-box';
+    sectionA.style.padding = '10px';
+    sectionA.style.backgroundColor = '#f0f0f0';
+
+    const sectionB = document.createElement('div');
+    sectionB.style.width = '33.33%';
+    sectionB.style.boxSizing = 'border-box';
+    sectionB.style.padding = '10px';
+    sectionB.style.backgroundColor = '#d0d0d0';
+
+    flexContainer.appendChild(sectionA);
+    flexContainer.appendChild(sectionB);
+
+    mainContainer.appendChild(flexContainer);
+
+    return { sectionA, sectionB };
+}
+
+// Ejecuta ambas funciones para crear el contenedor principal y las secciones A y B en flexbox
+document.addEventListener('DOMContentLoaded', function() {
+    const mainContainer = createMainContainer();
+    const { sectionA, sectionB } = createFlexboxSections(mainContainer);
+});
+
