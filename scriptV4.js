@@ -1,3 +1,4 @@
+
 // Identifica el contenedor de video y el elemento <track> dentro del iframe H5P
 function identifyVideoAndTrackElements(iframeDocument) {
     const interactiveVideoContainer = iframeDocument.querySelector('.h5p-container.h5p-standalone.h5p-interactive-video');
@@ -21,18 +22,22 @@ function createMainContainer(iframeDocument) {
 // Crea un elemento con estilos base para flexbox
 function createFlexSection(width, backgroundColor) {
     const section = document.createElement('div');
-    section.style.width = width;
-    section.style.boxSizing = 'border-box';
-    section.style.padding = '10px';
-    section.style.backgroundColor = backgroundColor;
+    Object.assign(section.style, {
+        width: width,
+        boxSizing: 'border-box',
+        padding: '10px',
+        backgroundColor: backgroundColor
+    });
     return section;
 }
 
 // Crea un flexbox dentro del contenedor principal con secciones A (2/3) y B (1/3)
 function createFlexboxSections(mainContainer, iframeDocument) {
     const flexContainer = iframeDocument.createElement('div');
-    flexContainer.style.display = 'flex';
-    flexContainer.style.width = '100%';
+    Object.assign(flexContainer.style, {
+        display: 'flex',
+        width: '100%'
+    });
 
     const sectionA = createFlexSection('66.67%', '#f0f0f0');
     const sectionB = createFlexSection('33.33%', '#d0d0d0');
@@ -44,12 +49,32 @@ function createFlexboxSections(mainContainer, iframeDocument) {
     return { sectionA, sectionB };
 }
 
-// Coloca los recursos de video y track en las secciones A y B
+// Coloca los recursos de video y muestra el contenido del track en las secciones A y B
 function placeResourcesInSections(sectionA, sectionB, interactiveVideoContainer, trackElement) {
     sectionA.appendChild(interactiveVideoContainer);
-    const trackContent = document.createElement('div');
-    trackContent.textContent = trackElement.src;
-    sectionB.appendChild(trackContent);
+
+    if (trackElement.src) {
+        fetch(trackElement.src)
+            .then(response => {
+                if (!response.ok) throw new Error("No se pudo cargar el contenido del <track>.");
+                return response.text();
+            })
+            .then(trackContent => {
+                const trackContentDiv = document.createElement('div');
+                trackContentDiv.textContent = trackContent;
+                sectionB.appendChild(trackContentDiv);
+            })
+            .catch(error => {
+                console.warn(error.message);
+                const errorMessage = document.createElement('div');
+                errorMessage.textContent = "No se pudo mostrar el contenido del <track>.";
+                sectionB.appendChild(errorMessage);
+            });
+    } else {
+        const noContentMessage = document.createElement('div');
+        noContentMessage.textContent = "El <track> no tiene contenido disponible.";
+        sectionB.appendChild(noContentMessage);
+    }
 }
 
 // Evento DOMContentLoaded y MutationObserver para inicialización del iframe y sus elementos
@@ -60,18 +85,19 @@ document.addEventListener('DOMContentLoaded', function () {
             observer.disconnect();
 
             const iframeDocument = iframe.contentDocument;
-            const mainContainer = createMainContainer(iframeDocument);
-            const { sectionA, sectionB } = createFlexboxSections(mainContainer, iframeDocument);
             const elements = identifyVideoAndTrackElements(iframeDocument);
 
             if (elements) {
                 console.log("Elementos necesarios encontrados y colocados en las secciones.");
+                const mainContainer = createMainContainer(iframeDocument);
+                const { sectionA, sectionB } = createFlexboxSections(mainContainer, iframeDocument);
                 placeResourcesInSections(sectionA, sectionB, elements.interactiveVideoContainer, elements.trackElement);
             } else {
-                console.warn("No se encontraron todos los elementos necesarios.");
+                console.warn("No se encontraron todos los elementos necesarios. Contenedor no creado.");
             }
         }
     });
 
     observer.observe(document.body, { childList: true, subtree: true });
 });
+
