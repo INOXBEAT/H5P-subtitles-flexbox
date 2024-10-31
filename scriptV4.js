@@ -97,12 +97,22 @@ function createTranscriptionAndFontSizeOptions(h5pDocument, menuList, sectionA, 
 
     const fontSizeControlItem = h5pDocument.createElement('li');
     const iconContainer = h5pDocument.createElement('div');
-    Object.assign(iconContainer.style, { display: 'flex', alignItems: 'center' });
+    Object.assign(iconContainer.style, { display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '8px 0', });
 
     // Crear iconos de ajuste de tamaño de fuente
     const increaseFontIcon = createFontSizeIcon(h5pDocument, 'Increase Font Size', 24, 'https://cdn4.iconfinder.com/data/icons/ionicons/512/icon-plus-round-512.png');
+    increaseFontIcon.style.cursor = 'pointer'; 
+    increaseFontIcon.style.marginRight = '8px'; 
+    increaseFontIcon.style.filter = 'invert(1) sepia(0) saturate(0) hue-rotate(180deg) brightness(200%)';
+    increaseFontIcon.style.border = '2px solid #000000';
+    increaseFontIcon.style.borderRadius = '4px';
+    
     const decreaseFontIcon = createFontSizeIcon(h5pDocument, 'Decrease Font Size', 24, 'https://cdn4.iconfinder.com/data/icons/ionicons/512/icon-minus-round-512.png');
-
+    decreaseFontIcon.style.cursor = 'pointer'; 
+    decreaseFontIcon.style.marginLeft = '8px'; 
+    decreaseFontIcon.style.filter = 'invert(1) sepia(0) saturate(0) hue-rotate(180deg) brightness(200%)';
+    decreaseFontIcon.style.border = '2px solid #000000';
+    decreaseFontIcon.style.borderRadius = '4px';
     // Eventos para ajustar el tamaño de fuente
     let currentFontSize = 16;
     sectionB.style.fontSize = `${currentFontSize}px`;
