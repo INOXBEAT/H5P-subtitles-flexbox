@@ -85,10 +85,11 @@ function placeResourcesInSections(sectionA, sectionB, interactiveVideoContainer,
 function createTranscriptionAndFontSizeOptions(h5pDocument, menuList, sectionA, sectionB) {
     console.info("Agregando opciones de transcripción y controles de tamaño de fuente al menú de subtítulos...");
     
-    sectionB.style.display = 'block';
+    sectionB.style.display = 'none';
+    sectionA.style.width = '100%';
     const transcriptionOption = h5pDocument.createElement('li');
     transcriptionOption.setAttribute('role', 'menuitemradio');
-    transcriptionOption.setAttribute('aria-checked', 'true');
+    transcriptionOption.setAttribute('aria-checked', 'false');
     transcriptionOption.textContent = 'Transcripción';
     transcriptionOption.style.cursor = 'pointer';
     transcriptionOption.addEventListener('click', () => toggleTranscriptionVisibility(sectionA, sectionB, transcriptionOption));
