@@ -40,7 +40,6 @@ function placeResourcesInSections(sectionA, sectionB, interactiveVideoContainer,
     sectionA.appendChild(interactiveVideoContainer);
 
     if (trackElement.src) {
-        console.log("URL de <track>:", trackElement.src);
 
         fetch(trackElement.src)
             .then(response => {
@@ -161,6 +160,14 @@ function adjustFontSize(size, sectionB, limit) {
 // Formatea y muestra los subtítulos en sectionB
 function formatCaptions(sectionB, captions) {
     sectionB.innerHTML = '';
+    const iframeDocument = sectionB.ownerDocument; // Aseguramos el contexto del iframe
+    const videoElement = iframeDocument.querySelector('video'); // Seleccionamos el video una vez, fuera del loop
+
+    if (!videoElement) {
+        console.warn("No se encontró el elemento <video> en el iframe.");
+        return;
+    }
+
     captions.forEach((caption, index) => {
         const listItem = document.createElement('div');
         listItem.classList.add('list-item');
@@ -172,11 +179,19 @@ function formatCaptions(sectionB, captions) {
 
         const textColumn = document.createElement('div');
         textColumn.classList.add('text-column');
-        
+
+        // Elimina cualquier identificador UUID del texto
         textColumn.textContent = caption.text.replace(/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}-\d+)/gi, '').trim();
 
         listItem.append(timeColumn, textColumn);
         sectionB.appendChild(listItem);
+
+        // Evento de clic para saltar al tiempo de reproducción en el video
+        listItem.addEventListener('click', () => {
+            videoElement.currentTime = caption.start; // Saltar al tiempo de inicio del subtítulo
+            videoElement.play(); // Reproducir el video desde ese punto
+            console.log(`Saltando a ${formatTime(caption.start)} en el video.`);
+        });
     });
 }
 
