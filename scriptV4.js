@@ -8,7 +8,7 @@ function identifyVideoAndTrackElements(iframeDocument) {
         : (console.warn("No se encontró el contenedor de video o el elemento <track>."), null);
 }
 
-// Crea un contenedor principal que se ajusta al ancho del body dentro del iframe
+// Creación de contenedor principal y flex
 function createMainContainer(iframeDocument) {
     const mainContainer = iframeDocument.createElement('div');
     mainContainer.id = 'main-flex-container';
@@ -38,18 +38,13 @@ function createFlexboxSections(mainContainer, iframeDocument) {
 // Inserta el contenedor de video y formatea el contenido de subtítulos en la sección B
 function placeResourcesInSections(sectionA, sectionB, interactiveVideoContainer, trackElement) {
     sectionA.appendChild(interactiveVideoContainer);
-
     if (trackElement.src) {
-
         fetch(trackElement.src)
-            .then(response => {
-                if (!response.ok) throw new Error(`Error ${response.status}: ${response.statusText}`);
-                return response.text();
-            })
+            .then(response => response.ok ? response.text() : Promise.reject(`Error ${response.status}: ${response.statusText}`))
             .then(vttContent => {
-                const captions = processVTT(vttContent); // Procesa el archivo VTT y retorna el arreglo de subtítulos
-                formatCaptions(sectionB, captions); // Muestra los subtítulos en sectionB
-                addTimeUpdateEvent(sectionA.querySelector('video'), captions, sectionB); // Agrega sincronización
+                const captions = processVTT(vttContent);
+                formatCaptions(sectionB, captions);
+                addTimeUpdateEvent(sectionA.querySelector('video'), captions, sectionB);
             })
             .catch(error => {
                 console.warn("Error al cargar el contenido del <track>:", error.message);
@@ -160,37 +155,27 @@ function adjustFontSize(size, sectionB, limit) {
 // Formatea y muestra los subtítulos en sectionB
 function formatCaptions(sectionB, captions) {
     sectionB.innerHTML = '';
-    const iframeDocument = sectionB.ownerDocument; // Aseguramos el contexto del iframe
-    const videoElement = iframeDocument.querySelector('video'); // Seleccionamos el video una vez, fuera del loop
-
+    const iframeDocument = sectionB.ownerDocument;
+    const videoElement = iframeDocument.querySelector('video');
     if (!videoElement) {
         console.warn("No se encontró el elemento <video> en el iframe.");
         return;
     }
-
     captions.forEach((caption, index) => {
         const listItem = document.createElement('div');
         listItem.classList.add('list-item');
         listItem.id = `caption-${index}`;
-
         const timeColumn = document.createElement('div');
         timeColumn.classList.add('time-column');
         timeColumn.textContent = formatTime(caption.start);
-
         const textColumn = document.createElement('div');
         textColumn.classList.add('text-column');
-
-        // Elimina cualquier identificador UUID del texto
         textColumn.textContent = caption.text.replace(/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}-\d+)/gi, '').trim();
-
         listItem.append(timeColumn, textColumn);
         sectionB.appendChild(listItem);
-
-        // Evento de clic para saltar al tiempo de reproducción en el video
         listItem.addEventListener('click', () => {
-            videoElement.currentTime = caption.start; // Saltar al tiempo de inicio del subtítulo
-            videoElement.play(); // Reproducir el video desde ese punto
-            console.log(`Saltando a ${formatTime(caption.start)} en el video.`);
+            videoElement.currentTime = caption.start;
+            videoElement.play();
         });
     });
 }
@@ -289,6 +274,8 @@ function addSubtitleStyles(iframeDocument) {
             width: 33.33%;
             box-sizing: border-box;
             padding: 10px;
+            max-height: 400px;
+            overflow-y: auto;
             display: none;
         }
         .list-item {
@@ -311,7 +298,7 @@ function addSubtitleStyles(iframeDocument) {
             flex: 1;
             text-align: center;
             font-weight: bold;
-            color: #0078d4; /* Color azul */
+            color: #0078d4;
         }
         .text-column {
             flex: 5;
@@ -324,19 +311,18 @@ function addSubtitleStyles(iframeDocument) {
     iframeDocument.head.appendChild(style);
 }
 
-// Inicialización de elementos en el iframe al cargar el documento
+// Inicialización del contenido
 document.addEventListener('DOMContentLoaded', function () {
     const observer = new MutationObserver(() => {
         const iframe = document.querySelector('iframe');
         if (iframe && iframe.contentDocument && iframe.contentDocument.body) {
             observer.disconnect();
-            addSubtitleStyles(iframe.contentDocument); // Agrega los estilos una sola vez
+            addSubtitleStyles(iframe.contentDocument);
             initializeH5PContent(iframe.contentDocument);
         }
     });
     observer.observe(document.body, { childList: true, subtree: true });
 });
-
 
 
 
