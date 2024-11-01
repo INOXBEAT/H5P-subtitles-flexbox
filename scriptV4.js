@@ -272,9 +272,9 @@ function addSubtitleStyles(iframeDocument) {
         }
         .section-b {
             width: 33.33%;
+            max-height: 550px;
             box-sizing: border-box;
             padding: 10px;
-            max-height: 400px;
             overflow-y: auto;
             display: none;
         }
