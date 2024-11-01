@@ -140,10 +140,8 @@ function toggleTranscriptionVisibility(sectionA, sectionB, transcriptionOption) 
 // Ajusta el tamaño de la fuente en la sección de transcripción
 function adjustFontSize(size, sectionB, limit) {
     if (size >= 10 && size <= 34) {
-        // Aplica el tamaño de fuente a toda la sección
         sectionB.style.fontSize = `${size}px`;
 
-        // Selecciona todas las columnas de tiempo y texto y ajusta su tamaño
         const timeColumns = sectionB.querySelectorAll('.time-column');
         const textColumns = sectionB.querySelectorAll('.text-column');
 
@@ -207,19 +205,8 @@ function addTimeUpdateEvent(videoElement, captions, sectionB) {
     });
 }
 
-// Función de inicialización que configura los elementos y el menú de subtítulos
-function initializeH5PContent(iframeDocument) {
-    const elements = identifyVideoAndTrackElements(iframeDocument);
-
-    if (elements) {
-        const mainContainer = createMainContainer(iframeDocument);
-        const { sectionA, sectionB } = createFlexboxSections(mainContainer, iframeDocument);
-        placeResourcesInSections(sectionA, sectionB, elements.interactiveVideoContainer, elements.trackElement);
-    }
-}
-
-// Función de inicialización que configura los elementos y el menú de subtítulos
-function initializeH5PContent(iframeDocument) {
+// Función de inicialización que configura el contenido, el menú de subtítulos y el comportamiento de pantalla completa
+function initializeH5PContentWithControls(iframeDocument) {
     const elements = identifyVideoAndTrackElements(iframeDocument);
 
     if (elements) {
@@ -227,16 +214,21 @@ function initializeH5PContent(iframeDocument) {
         const { sectionA, sectionB } = createFlexboxSections(mainContainer, iframeDocument);
         placeResourcesInSections(sectionA, sectionB, elements.interactiveVideoContainer, elements.trackElement);
 
+        // Configuración del modo de pantalla completa
+        setupFullscreenBehavior(iframeDocument);
+
+        // Configuración del menú de subtítulos
         const controlsContainer = iframeDocument.querySelector('.h5p-controls');
         if (controlsContainer) {
             const observer = new MutationObserver(() => {
                 const captionsButton = controlsContainer.querySelector('.h5p-control.h5p-captions');
                 if (captionsButton) {
-                    captionsButton.click();
+                    captionsButton.click(); // Forzamos la apertura del menú de subtítulos para detectar opciones
                     observer.disconnect();
 
                     const captionsMenu = iframeDocument.querySelector('.h5p-chooser.h5p-captions ol');
                     if (captionsMenu) {
+                        // Crear y agregar las opciones de transcripción y ajuste de fuente
                         createTranscriptionAndFontSizeOptions(iframeDocument, captionsMenu, sectionA, sectionB);
                     } else {
                         console.warn("No se encontró el menú de subtítulos.");
@@ -249,6 +241,7 @@ function initializeH5PContent(iframeDocument) {
         }
     }
 }
+
 
 // Agrega una hoja de estilos al iframe para los subtítulos y contenedores
 function addSubtitleStyles(iframeDocument) {
@@ -311,14 +304,61 @@ function addSubtitleStyles(iframeDocument) {
     iframeDocument.head.appendChild(style);
 }
 
-// Inicialización del contenido
+
+
+
+// Detecta y gestiona pantalla completa
+function setupFullscreenBehavior(iframeDocument) {
+    const fullscreenButton = iframeDocument.querySelector('.h5p-control.h5p-fullscreen');
+    const mainContainer = iframeDocument.querySelector('#main-flex-container');
+
+    if (!fullscreenButton || !mainContainer) {
+        console.warn("No se encontró el botón de pantalla completa o el contenedor principal.");
+        return;
+    }
+
+    fullscreenButton.addEventListener('click', () => {
+        const isFullscreen = !document.fullscreenElement;
+        
+        if (isFullscreen) {
+            mainContainer.requestFullscreen()
+                .then(() => {
+                    mainContainer.style.width = '100vw';
+                    mainContainer.style.height = '100vh';
+                    mainContainer.style.display = 'flex';
+                })
+                .catch(err => console.warn("Error al activar pantalla completa:", err));
+        } else {
+            document.exitFullscreen()
+                .then(() => {
+                    mainContainer.style.width = '';
+                    mainContainer.style.height = '';
+                    mainContainer.style.display = '';
+                })
+                .catch(err => console.warn("Error al salir de pantalla completa:", err));
+        }
+    });
+
+    document.addEventListener('fullscreenchange', () => {
+        if (!document.fullscreenElement) {
+            mainContainer.style.width = '';
+            mainContainer.style.height = '';
+            mainContainer.style.display = '';
+        }
+    });
+}
+
+
+
+
+// Llamado para inicializar el contenido con los controles
 document.addEventListener('DOMContentLoaded', function () {
     const observer = new MutationObserver(() => {
         const iframe = document.querySelector('iframe');
         if (iframe && iframe.contentDocument && iframe.contentDocument.body) {
             observer.disconnect();
             addSubtitleStyles(iframe.contentDocument);
-            initializeH5PContent(iframe.contentDocument);
+            initializeH5PContentWithControls(iframe.contentDocument);
         }
     });
     observer.observe(document.body, { childList: true, subtree: true });
