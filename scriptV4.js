@@ -40,17 +40,53 @@ function placeResourcesInSections(sectionA, sectionB, interactiveVideoContainer,
     sectionA.appendChild(interactiveVideoContainer);
 
     if (trackElement.src) {
+        console.log("URL de <track>:", trackElement.src);
+
         fetch(trackElement.src)
-            .then(response => response.ok ? response.text() : Promise.reject("No se pudo cargar el contenido del <track>"))
-            .then(vttContent => formatCaptions(sectionB, vttContent))
+            .then(response => {
+                if (!response.ok) throw new Error(`Error ${response.status}: ${response.statusText}`);
+                return response.text();
+            })
+            .then(vttContent => {
+                const captions = processVTT(vttContent); // Procesa el archivo VTT y retorna el arreglo de subtítulos
+                formatCaptions(sectionB, captions); // Muestra los subtítulos en sectionB
+                addTimeUpdateEvent(sectionA.querySelector('video'), captions, sectionB); // Agrega sincronización
+            })
             .catch(error => {
-                console.warn(error);
+                console.warn("Error al cargar el contenido del <track>:", error.message);
                 sectionB.textContent = "No se pudo mostrar el contenido del <track>.";
             });
     } else {
         console.warn("El <track> no tiene contenido disponible.");
         sectionB.textContent = "El <track> no tiene contenido disponible.";
     }
+}
+
+// Función para procesar el archivo VTT en un arreglo de subtítulos con tiempo
+function processVTT(vttContent) {
+    const lines = vttContent.split('\n');
+    const captions = [];
+    let currentCaption = null;
+
+    lines.forEach(line => {
+        if (line.includes('-->')) {
+            if (currentCaption) captions.push(currentCaption);
+            const [start, end] = line.split(' --> ');
+            currentCaption = { start: parseTime(start), end: parseTime(end), text: '' };
+        } else if (line.trim() && currentCaption) {
+            currentCaption.text += line.trim() + ' ';
+        }
+    });
+
+    if (currentCaption) captions.push(currentCaption);
+    return captions;
+}
+
+// Convierte un tiempo de formato VTT (00:00:00.000) a segundos
+function parseTime(timeString) {
+    const parts = timeString.split(':');
+    const seconds = parseFloat(parts[2]);
+    return parseInt(parts[0]) * 3600 + parseInt(parts[1]) * 60 + seconds;
 }
 
 // Agrega opciones de transcripción y controles de tamaño de fuente en el menú de subtítulos
@@ -122,51 +158,64 @@ function adjustFontSize(size, sectionB, limit) {
     }
 }
 
-function formatCaptions(sectionB, vttContent) {
+// Formatea y muestra los subtítulos en sectionB
+function formatCaptions(sectionB, captions) {
     sectionB.innerHTML = '';
-    const lines = vttContent.split('\n');
-    const filteredLines = lines.filter(line => line.trim() !== 'WEBVTT' && line.trim() !== '');
+    captions.forEach((caption, index) => {
+        const listItem = document.createElement('div');
+        listItem.classList.add('list-item');
+        listItem.id = `caption-${index}`;
 
-    filteredLines.forEach((line, index) => {
-        if (line.includes('-->')) {
-            const [start, end] = line.split(' --> ').map(formatTime);
+        const timeColumn = document.createElement('div');
+        timeColumn.classList.add('time-column');
+        timeColumn.textContent = formatTime(caption.start);
 
-            // Crea y agrega el elemento de subtítulo
-            const listItem = document.createElement('div');
-            listItem.classList.add('list-item');
-            sectionB.appendChild(listItem);
+        const textColumn = document.createElement('div');
+        textColumn.classList.add('text-column');
+        
+        textColumn.textContent = caption.text.replace(/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}-\d+)/gi, '').trim();
 
-            // Verificar estilo aplicado a list-item
-            const listItemStyleApplied = window.getComputedStyle(listItem).display === 'flex';
-            console.log(`Estilo de 'list-item' aplicado: ${listItemStyleApplied ? 'Sí' : 'No'}`);
-
-            const timeColumn = document.createElement('div');
-            timeColumn.style.color = '#0078d4';
-            timeColumn.classList.add('time-column');
-            timeColumn.textContent = `${start}`;
-            listItem.appendChild(timeColumn);
-
-            // Verificar estilo aplicado a time-column
-            const timeColumnStyleApplied = window.getComputedStyle(timeColumn).fontWeight === 'bold';
-            console.log(`Estilo de 'time-column' aplicado: ${timeColumnStyleApplied ? 'Sí' : 'No'}`);
-
-            const textColumn = document.createElement('div');
-            textColumn.classList.add('text-column');
-            textColumn.textContent = filteredLines[index + 1] || '';
-            listItem.appendChild(textColumn);
-
-            // Verificar estilo aplicado a text-column
-            const textColumnStyleApplied = window.getComputedStyle(textColumn).textAlign === 'justify';
-            console.log(`Estilo de 'text-column' aplicado: ${textColumnStyleApplied ? 'Sí' : 'No'}`);
-        }
+        listItem.append(timeColumn, textColumn);
+        sectionB.appendChild(listItem);
     });
 }
 
 // Función auxiliar para formatear el tiempo en mm:ss
-function formatTime(timeString) {
-    const [hours, minutes, seconds] = timeString.split(':').map(parseFloat);
-    const totalMinutes = hours * 60 + minutes;
-    return `${totalMinutes}:${seconds < 10 ? '0' : ''}${seconds.toFixed(0)}`;
+function formatTime(seconds) {
+    const minutes = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
+}
+
+// Agrega el evento timeupdate al video para sincronizar los subtítulos
+function addTimeUpdateEvent(videoElement, captions, sectionB) {
+    videoElement.addEventListener('timeupdate', () => {
+        const currentTime = videoElement.currentTime;
+        captions.forEach((caption, index) => {
+            const captionElement = sectionB.querySelector(`#caption-${index}`);
+            if (currentTime >= caption.start && currentTime <= caption.end) {
+                captionElement.classList.add('highlighted');
+
+                sectionB.scrollTo({
+                    top: captionElement.offsetTop - sectionB.clientHeight / 2 + captionElement.clientHeight / 2,
+                    behavior: 'smooth'
+                });
+            } else {
+                captionElement.classList.remove('highlighted');
+            }
+        });
+    });
+}
+
+// Función de inicialización que configura los elementos y el menú de subtítulos
+function initializeH5PContent(iframeDocument) {
+    const elements = identifyVideoAndTrackElements(iframeDocument);
+
+    if (elements) {
+        const mainContainer = createMainContainer(iframeDocument);
+        const { sectionA, sectionB } = createFlexboxSections(mainContainer, iframeDocument);
+        placeResourcesInSections(sectionA, sectionB, elements.interactiveVideoContainer, elements.trackElement);
+    }
 }
 
 // Función de inicialización que configura los elementos y el menú de subtítulos
@@ -236,17 +285,19 @@ function addSubtitleStyles(iframeDocument) {
             cursor: pointer;
             transition: background-color 0.2s;
         }
-
         .list-item:hover {
             background-color: #f0f0f0;
         }
-
+        .highlighted {
+            background-color: #cae4e8;
+            font-weight: bold;
+        }
         .time-column {
             flex: 1;
             text-align: center;
             font-weight: bold;
+            color: #0078d4; /* Color azul */
         }
-
         .text-column {
             flex: 5;
             font-size: 14px;
@@ -254,20 +305,8 @@ function addSubtitleStyles(iframeDocument) {
             padding-left: 8px;
             text-align: justify;
         }
-
-        .highlighted {
-            background-color: #cae4e8;
-            font-weight: bold;
-        }
     `;
     iframeDocument.head.appendChild(style);
-    
-    // Verificación y log de éxito
-    if (iframeDocument.head.contains(style)) {
-        console.log("Estilos de subtítulos aplicados correctamente en el iframe.");
-    } else {
-        console.warn("No se pudo aplicar la hoja de estilos en el iframe.");
-    }
 }
 
 // Inicialización de elementos en el iframe al cargar el documento
@@ -282,3 +321,11 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     observer.observe(document.body, { childList: true, subtree: true });
 });
+
+
+
+
+
+
+
+
