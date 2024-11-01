@@ -1,11 +1,9 @@
 // Identifica el contenedor de video y el elemento <track> dentro del iframe H5P
 function identifyVideoAndTrackElements(iframeDocument) {
-    console.info("Identificando el contenedor de video y el elemento <track>...");
     const interactiveVideoContainer = iframeDocument.querySelector('.h5p-container.h5p-standalone.h5p-interactive-video');
     const trackElement = iframeDocument.querySelector('track');
     
     if (interactiveVideoContainer && trackElement) {
-        console.info("Contenedor de video y elemento <track> encontrados.");
         return { interactiveVideoContainer, trackElement };
     }
     console.warn("No se encontró el contenedor de video o el elemento <track>.");
@@ -14,7 +12,6 @@ function identifyVideoAndTrackElements(iframeDocument) {
 
 // Crea un contenedor principal que se ajusta al ancho del body dentro del iframe
 function createMainContainer(iframeDocument) {
-    console.info("Creando contenedor principal en el iframe...");
     const mainContainer = iframeDocument.createElement('div');
     Object.assign(mainContainer.style, {
         width: '100%',
@@ -23,13 +20,11 @@ function createMainContainer(iframeDocument) {
     });
     mainContainer.id = 'main-flex-container';
     iframeDocument.body.appendChild(mainContainer);
-    console.info("Contenedor principal creado:", mainContainer);
     return mainContainer;
 }
 
 // Crea un elemento flexbox con secciones A y B
 function createFlexboxSections(mainContainer, iframeDocument) {
-    console.info("Creando flexbox con secciones A y B...");
     const flexContainer = iframeDocument.createElement('div');
     Object.assign(flexContainer.style, {
         display: 'flex',
@@ -53,23 +48,21 @@ function createFlexboxSections(mainContainer, iframeDocument) {
     flexContainer.appendChild(sectionB);
     mainContainer.appendChild(flexContainer);
 
-    console.info("Flexbox y secciones creadas correctamente:", { sectionA, sectionB });
+    // Configura la sección B para que esté oculta inicialmente
+    sectionB.style.display = 'none';
+    sectionA.style.width = '100%';
+
     return { sectionA, sectionB };
 }
 
-// Coloca los recursos de video y muestra el contenido del track en las secciones A y B
-function placeResourcesInSections(sectionA, sectionB, interactiveVideoContainer, trackElement) {
-    console.info("Colocando el contenedor de video y el contenido del <track> en las secciones...");
+// Inserta el contenedor de video y formatea el contenido de subtítulos en la sección Bfunction placeResourcesInSections(sectionA, sectionB, interactiveVideoContainer, trackElement) {
     sectionA.appendChild(interactiveVideoContainer);
 
     if (trackElement.src) {
         fetch(trackElement.src)
             .then(response => response.ok ? response.text() : Promise.reject("No se pudo cargar el contenido del <track>."))
-            .then(trackContent => {
-                const trackContentDiv = document.createElement('div');
-                trackContentDiv.textContent = trackContent;
-                sectionB.appendChild(trackContentDiv);
-                console.info("Contenido del <track> mostrado en la sección B.");
+            .then(vttContent => {
+                formatCaptions(sectionB, vttContent); // Llama a formatCaptions para aplicar el formato
             })
             .catch(error => {
                 console.warn(error);
@@ -80,13 +73,8 @@ function placeResourcesInSections(sectionA, sectionB, interactiveVideoContainer,
         sectionB.textContent = "El <track> no tiene contenido disponible.";
     }
 }
-
-// Agrega opciones de transcripción y controles de tamaño de fuente en el menú de subtítulos
 function createTranscriptionAndFontSizeOptions(h5pDocument, menuList, sectionA, sectionB) {
-    console.info("Agregando opciones de transcripción y controles de tamaño de fuente al menú de subtítulos...");
-    
-    sectionB.style.display = 'none';
-    sectionA.style.width = '100%';
+
     const transcriptionOption = h5pDocument.createElement('li');
     transcriptionOption.setAttribute('role', 'menuitemradio');
     transcriptionOption.setAttribute('aria-checked', 'false');
@@ -97,22 +85,12 @@ function createTranscriptionAndFontSizeOptions(h5pDocument, menuList, sectionA, 
 
     const fontSizeControlItem = h5pDocument.createElement('li');
     const iconContainer = h5pDocument.createElement('div');
-    Object.assign(iconContainer.style, { display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '8px 0', });
+    Object.assign(iconContainer.style, { display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '8px 0' });
 
     // Crear iconos de ajuste de tamaño de fuente
     const increaseFontIcon = createFontSizeIcon(h5pDocument, 'Increase Font Size', 24, 'https://cdn4.iconfinder.com/data/icons/ionicons/512/icon-plus-round-512.png');
-    increaseFontIcon.style.cursor = 'pointer'; 
-    increaseFontIcon.style.marginRight = '8px'; 
-    increaseFontIcon.style.filter = 'invert(1) sepia(0) saturate(0) hue-rotate(180deg) brightness(200%)';
-    increaseFontIcon.style.border = '2px solid #000000';
-    increaseFontIcon.style.borderRadius = '4px';
-    
     const decreaseFontIcon = createFontSizeIcon(h5pDocument, 'Decrease Font Size', 24, 'https://cdn4.iconfinder.com/data/icons/ionicons/512/icon-minus-round-512.png');
-    decreaseFontIcon.style.cursor = 'pointer'; 
-    decreaseFontIcon.style.marginLeft = '8px'; 
-    decreaseFontIcon.style.filter = 'invert(1) sepia(0) saturate(0) hue-rotate(180deg) brightness(200%)';
-    decreaseFontIcon.style.border = '2px solid #000000';
-    decreaseFontIcon.style.borderRadius = '4px';
+
     // Eventos para ajustar el tamaño de fuente
     let currentFontSize = 16;
     sectionB.style.fontSize = `${currentFontSize}px`;
@@ -124,14 +102,21 @@ function createTranscriptionAndFontSizeOptions(h5pDocument, menuList, sectionA, 
     iconContainer.appendChild(decreaseFontIcon);
     fontSizeControlItem.appendChild(iconContainer);
     menuList.appendChild(fontSizeControlItem);
-    console.info("Opciones de transcripción y controles de tamaño de fuente añadidos.");
 }
 
 // Función auxiliar para crear icono de ajuste de tamaño de fuente
 function createFontSizeIcon(h5pDocument, alt, size, src) {
     const icon = h5pDocument.createElement('img');
     Object.assign(icon, { alt, src });
-    Object.assign(icon.style, { width: `${size}px`, height: `${size}px`, cursor: 'pointer', margin: '0 8px' });
+    Object.assign(icon.style, {
+        width: `${size}px`,
+        height: `${size}px`,
+        cursor: 'pointer',
+        margin: '0 8px',
+        filter: 'invert(1) sepia(0) saturate(0) hue-rotate(180deg) brightness(200%)', // Estilo de filtro blanco
+        border: '2px solid #000000',
+        borderRadius: '4px'
+    });
     return icon;
 }
 
@@ -141,20 +126,17 @@ function toggleTranscriptionVisibility(sectionA, sectionB, transcriptionOption) 
     sectionB.style.display = isVisible ? 'block' : 'none';
     sectionA.style.width = isVisible ? '66.66%' : '100%';
     transcriptionOption.setAttribute('aria-checked', isVisible.toString());
-    console.info(`Transcripción ${isVisible ? "mostrada" : "ocultada"}. aria-checked=${isVisible}`);
 }
 
 // Ajusta el tamaño de la fuente en la sección de transcripción
 function adjustFontSize(size, sectionB, limit) {
     if (size >= 10 && size <= 34) {
         sectionB.style.fontSize = `${size}px`;
-        console.info(`Tamaño de fuente ajustado a: ${size}px.`);
     }
 }
 
 // Función de inicialización que configura los elementos y el menú de subtítulos
 function initializeH5PContent(iframeDocument) {
-    console.info("Iniciando contenido H5P...");
     const elements = identifyVideoAndTrackElements(iframeDocument);
 
     if (elements) {
@@ -164,7 +146,6 @@ function initializeH5PContent(iframeDocument) {
 
         const controlsContainer = iframeDocument.querySelector('.h5p-controls');
         if (controlsContainer) {
-            console.info("Contenedor de controles encontrado. Observando el botón de subtítulos...");
             const observer = new MutationObserver(() => {
                 const captionsButton = controlsContainer.querySelector('.h5p-control.h5p-captions');
                 if (captionsButton) {
@@ -184,6 +165,60 @@ function initializeH5PContent(iframeDocument) {
             console.warn("No se encontró el contenedor de controles (.h5p-controls) en el iframe.");
         }
     }
+}
+
+// Función para dar formato a los subtítulos en sectionB eliminando el título WEBVTT
+function formatCaptions(sectionB, vttContent) {
+    // Limpia el contenedor de la sección B
+    sectionB.innerHTML = '';
+
+    // Divide el VTT en líneas
+    const lines = vttContent.split('\n');
+    
+    // Filtra y elimina la línea 'WEBVTT' del contenido
+    const filteredLines = lines.filter(line => line.trim() !== 'WEBVTT' && line.trim() !== '');
+
+    // Itera sobre el contenido y muestra los tiempos y textos en formato de columnas
+    filteredLines.forEach((line, index) => {
+        if (line.includes('-->')) { // Identifica las líneas de tiempo
+            const [start, end] = line.split(' --> ').map(formatTime);
+
+            // Crear un contenedor para el elemento de subtítulo
+            const listItem = document.createElement('div');
+            listItem.style.display = 'flex';
+            listItem.style.alignItems = 'center';
+            listItem.style.padding = '8px';
+            listItem.style.borderBottom = '1px solid #e0e0e0';
+
+            // Crear la columna de tiempo
+            const timeColumn = document.createElement('div');
+            timeColumn.style.flex = '1 1 25%';
+            timeColumn.style.textAlign = 'center';
+            timeColumn.style.fontWeight = 'bold';
+            timeColumn.textContent = `${start}`;
+
+            // Crear la columna de texto
+            const textColumn = document.createElement('div');
+            textColumn.style.flex = '1 1 75%';
+            textColumn.style.paddingLeft = '10px';
+            textColumn.style.textAlign = 'justify';
+            textColumn.textContent = filteredLines[index + 1] || ''; // Muestra el texto de subtítulo en la siguiente línea
+
+            // Agrega columnas al contenedor
+            listItem.appendChild(timeColumn);
+            listItem.appendChild(textColumn);
+
+            // Agrega el contenedor formateado a la sección B
+            sectionB.appendChild(listItem);
+        }
+    });
+}
+
+// Función auxiliar para formatear el tiempo en mm:ss
+function formatTime(timeString) {
+    const [hours, minutes, seconds] = timeString.split(':').map(parseFloat);
+    const totalMinutes = hours * 60 + minutes;
+    return `${totalMinutes}:${seconds < 10 ? '0' : ''}${seconds.toFixed(0)}`;
 }
 
 // Inicialización de elementos en el iframe al cargar el documento
