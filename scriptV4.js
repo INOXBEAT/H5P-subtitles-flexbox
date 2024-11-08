@@ -1,3 +1,16 @@
+// Llamado para inicializar el contenido con los controles
+document.addEventListener('DOMContentLoaded', function () {
+    const observer = new MutationObserver(() => {
+        const iframe = document.querySelector('iframe');
+        if (iframe && iframe.contentDocument && iframe.contentDocument.readyState === 'complete') {
+            observer.disconnect();
+            addSubtitleStyles(iframe.contentDocument);
+            initializeH5PContentWithControls(iframe.contentDocument);
+        }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+});
+
 // Identifica el contenedor de video y el elemento <track> dentro del iframe H5P
 function identifyVideoAndTrackElements(iframeDocument) {
     const interactiveVideoContainer = iframeDocument.querySelector('.h5p-container.h5p-standalone.h5p-interactive-video');
@@ -242,7 +255,6 @@ function initializeH5PContentWithControls(iframeDocument) {
     }
 }
 
-
 // Agrega una hoja de estilos al iframe para los subtítulos y contenedores
 function addSubtitleStyles(iframeDocument) {
     const style = iframeDocument.createElement('style');
@@ -265,7 +277,7 @@ function addSubtitleStyles(iframeDocument) {
         }
         .section-b {
             width: 33.33%;
-            max-height: 550px;
+            max-height: 50vh;
             box-sizing: border-box;
             padding: 10px;
             overflow-y: auto;
@@ -304,65 +316,79 @@ function addSubtitleStyles(iframeDocument) {
     iframeDocument.head.appendChild(style);
 }
 
-
-
-
-// Detecta y gestiona pantalla completa
 function setupFullscreenBehavior(iframeDocument) {
-    const fullscreenButton = iframeDocument.querySelector('.h5p-control.h5p-fullscreen');
-    const mainContainer = iframeDocument.querySelector('#main-flex-container');
+    // Configuramos un observador para esperar que el botón de pantalla completa esté disponible
+    const observer = new MutationObserver(() => {
+        const fullscreenButton = iframeDocument.querySelector('.h5p-control.h5p-fullscreen');
+        const mainContainer = iframeDocument.querySelector('#main-flex-container');
+        const sectionA = iframeDocument.querySelector('.section-a');
+        const sectionB = iframeDocument.querySelector('.section-b');
+        const flexContainer = iframeDocument.querySelector('.flex-container');
 
-    if (!fullscreenButton || !mainContainer) {
-        console.warn("No se encontró el botón de pantalla completa o el contenedor principal.");
-        return;
-    }
+        // Verificamos si el botón y los elementos necesarios ya están presentes
+        if (fullscreenButton && mainContainer && sectionA && sectionB && flexContainer) {
+            console.log("Todos los elementos necesarios encontrados, configurando pantalla completa.");
 
-    fullscreenButton.addEventListener('click', () => {
-        const isFullscreen = !document.fullscreenElement;
-        
-        if (isFullscreen) {
-            mainContainer.requestFullscreen()
-                .then(() => {
-                    mainContainer.style.width = '100vw';
-                    mainContainer.style.height = '100vh';
-                    mainContainer.style.display = 'flex';
-                })
-                .catch(err => console.warn("Error al activar pantalla completa:", err));
-        } else {
-            document.exitFullscreen()
-                .then(() => {
+            // Detenemos el observador una vez que encontramos todos los elementos
+            observer.disconnect();
+
+            // Configuración del comportamiento de pantalla completa
+            fullscreenButton.addEventListener('click', () => {
+                const isFullscreen = !document.fullscreenElement;
+
+                if (isFullscreen) {
+                    mainContainer.requestFullscreen()
+                        .then(() => {
+                            mainContainer.style.width = '100vw';
+                            mainContainer.style.height = '100vh';
+                            mainContainer.style.display = 'flex';
+                            flexContainer.style.height = '100%';
+                            sectionA.style.height = '100%';
+                            sectionB.style.height = '100%';
+                            sectionB.style.maxHeight = ''; // Quitar max-height en pantalla completa
+                        })
+                        .catch(err => console.warn("Error al activar pantalla completa:", err));
+                } else {
+                    document.exitFullscreen()
+                        .then(() => {
+                            mainContainer.style.width = '';
+                            mainContainer.style.height = '';
+                            mainContainer.style.display = '';
+                            flexContainer.style.height = '';       
+                            sectionA.style.height = '';           
+                            sectionB.style.height = '';
+                            sectionB.style.maxHeight = '50vh'; // Reaplicar max-height en modo normal
+                        })
+                        .catch(err => console.warn("Error al salir de pantalla completa:", err));
+                }
+            });
+
+            // Listener para aplicar estilos cuando cambia el estado de pantalla completa
+            document.addEventListener('fullscreenchange', () => {
+                if (!document.fullscreenElement) {
                     mainContainer.style.width = '';
                     mainContainer.style.height = '';
                     mainContainer.style.display = '';
-                })
-                .catch(err => console.warn("Error al salir de pantalla completa:", err));
+                    flexContainer.style.height = '';      
+                    sectionA.style.height = '';     
+                    sectionB.style.height = '';
+                    sectionB.style.maxHeight = '50vh'; // Restaurar max-height
+                }
+            });
+        } else {
+            // Diagnóstico específico de cada elemento que no se encuentre
+            if (!fullscreenButton) console.warn("Esperando el botón de pantalla completa.");
+            if (!mainContainer) console.warn("Esperando el contenedor principal ('#main-flex-container').");
+            if (!sectionA) console.warn("Esperando la sección A ('.section-a').");
+            if (!sectionB) console.warn("Esperando la sección B ('.section-b').");
+            if (!flexContainer) console.warn("Esperando el contenedor flex ('.flex-container').");
         }
     });
 
-    document.addEventListener('fullscreenchange', () => {
-        if (!document.fullscreenElement) {
-            mainContainer.style.width = '';
-            mainContainer.style.height = '';
-            mainContainer.style.display = '';
-        }
-    });
+    // Iniciamos el observador para monitorear cambios en el iframe
+    observer.observe(iframeDocument.body, { childList: true, subtree: true });
 }
 
-
-
-
-// Llamado para inicializar el contenido con los controles
-document.addEventListener('DOMContentLoaded', function () {
-    const observer = new MutationObserver(() => {
-        const iframe = document.querySelector('iframe');
-        if (iframe && iframe.contentDocument && iframe.contentDocument.body) {
-            observer.disconnect();
-            addSubtitleStyles(iframe.contentDocument);
-            initializeH5PContentWithControls(iframe.contentDocument);
-        }
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
-});
 
 
 
