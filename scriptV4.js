@@ -99,6 +99,7 @@ function parseTime(timeString) {
 // Agrega opciones de transcripción y controles de tamaño de fuente en el menú de subtítulos
 function createTranscriptionAndFontSizeOptions(h5pDocument, menuList, sectionA, sectionB) {
     const transcriptionOption = h5pDocument.createElement('li');
+    transcriptionOption.classList.add('transcription-option');
     transcriptionOption.setAttribute('role', 'menuitemradio');
     transcriptionOption.setAttribute('aria-checked', 'false');
     transcriptionOption.textContent = 'Transcripción';
@@ -108,6 +109,10 @@ function createTranscriptionAndFontSizeOptions(h5pDocument, menuList, sectionA, 
 
     const fontSizeControlItem = h5pDocument.createElement('li');
     const iconContainer = h5pDocument.createElement('div');
+    fontSizeControlItem.textContent = 'Tamaño de letra';
+    fontSizeControlItem.style.margin = '0px 32px';
+    //fontSizeControlItem.style.marginLeft = '32px';
+    
     Object.assign(iconContainer.style, { display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '8px 0' });
 
     // Crear iconos de ajuste de tamaño de fuente
