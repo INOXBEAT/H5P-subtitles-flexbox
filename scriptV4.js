@@ -111,8 +111,6 @@ function createTranscriptionAndFontSizeOptions(h5pDocument, menuList, sectionA, 
     const iconContainer = h5pDocument.createElement('div');
     fontSizeControlItem.textContent = 'Tamaño de letra';
     fontSizeControlItem.style.margin = '0px 32px';
-    //fontSizeControlItem.style.marginLeft = '32px';
-    
     Object.assign(iconContainer.style, { display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '8px 0' });
 
     // Crear iconos de ajuste de tamaño de fuente
