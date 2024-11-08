@@ -227,8 +227,11 @@ function initializeH5PContentWithControls(iframeDocument) {
         const { sectionA, sectionB } = createFlexboxSections(mainContainer, iframeDocument);
         placeResourcesInSections(sectionA, sectionB, elements.interactiveVideoContainer, elements.trackElement);
 
+        // Ajustar altura de sectionB al cargar el contenido
+        adjustSectionBHeight(sectionA, sectionB);
+
         // Configuración del modo de pantalla completa
-        setupFullscreenBehavior(iframeDocument);
+        setupFullscreenBehavior(iframeDocument, sectionA, sectionB);
 
         // Configuración del menú de subtítulos
         const controlsContainer = iframeDocument.querySelector('.h5p-controls');
@@ -277,8 +280,8 @@ function addSubtitleStyles(iframeDocument) {
         }
         .section-b {
             width: 33.33%;
-            max-height: 50vh;
             box-sizing: border-box;
+            background: #FFFFFF;
             padding: 10px;
             overflow-y: auto;
             display: none;
@@ -316,23 +319,17 @@ function addSubtitleStyles(iframeDocument) {
     iframeDocument.head.appendChild(style);
 }
 
-function setupFullscreenBehavior(iframeDocument) {
-    // Configuramos un observador para esperar que el botón de pantalla completa esté disponible
+// Función de configuración para pantalla completa
+function setupFullscreenBehavior(iframeDocument, sectionA, sectionB) {
     const observer = new MutationObserver(() => {
         const fullscreenButton = iframeDocument.querySelector('.h5p-control.h5p-fullscreen');
         const mainContainer = iframeDocument.querySelector('#main-flex-container');
-        const sectionA = iframeDocument.querySelector('.section-a');
-        const sectionB = iframeDocument.querySelector('.section-b');
         const flexContainer = iframeDocument.querySelector('.flex-container');
 
-        // Verificamos si el botón y los elementos necesarios ya están presentes
         if (fullscreenButton && mainContainer && sectionA && sectionB && flexContainer) {
             console.log("Todos los elementos necesarios encontrados, configurando pantalla completa.");
-
-            // Detenemos el observador una vez que encontramos todos los elementos
             observer.disconnect();
 
-            // Configuración del comportamiento de pantalla completa
             fullscreenButton.addEventListener('click', () => {
                 const isFullscreen = !document.fullscreenElement;
 
@@ -343,9 +340,8 @@ function setupFullscreenBehavior(iframeDocument) {
                             mainContainer.style.height = '100vh';
                             mainContainer.style.display = 'flex';
                             flexContainer.style.height = '100%';
-                            sectionA.style.height = '100%';
-                            sectionB.style.height = '100%';
-                            sectionB.style.maxHeight = ''; // Quitar max-height en pantalla completa
+
+                            adjustSectionBHeight(sectionA, sectionB); // Ajustar altura en pantalla completa
                         })
                         .catch(err => console.warn("Error al activar pantalla completa:", err));
                 } else {
@@ -354,29 +350,27 @@ function setupFullscreenBehavior(iframeDocument) {
                             mainContainer.style.width = '';
                             mainContainer.style.height = '';
                             mainContainer.style.display = '';
-                            flexContainer.style.height = '';       
-                            sectionA.style.height = '';           
-                            sectionB.style.height = '';
-                            sectionB.style.maxHeight = '50vh'; // Reaplicar max-height en modo normal
+                            flexContainer.style.height = '';
+
+                            adjustSectionBHeight(sectionA, sectionB); // Restablecer altura al salir
                         })
                         .catch(err => console.warn("Error al salir de pantalla completa:", err));
                 }
             });
 
-            // Listener para aplicar estilos cuando cambia el estado de pantalla completa
+            // Ajuste de altura en cambios de tamaño de ventana y salida de pantalla completa
+            window.addEventListener('resize', () => adjustSectionBHeight(sectionA, sectionB));
             document.addEventListener('fullscreenchange', () => {
                 if (!document.fullscreenElement) {
                     mainContainer.style.width = '';
                     mainContainer.style.height = '';
                     mainContainer.style.display = '';
-                    flexContainer.style.height = '';      
-                    sectionA.style.height = '';     
-                    sectionB.style.height = '';
-                    sectionB.style.maxHeight = '50vh'; // Restaurar max-height
+                    flexContainer.style.height = '';
+
+                    adjustSectionBHeight(sectionA, sectionB); // Ajuste de altura al salir de pantalla completa
                 }
             });
         } else {
-            // Diagnóstico específico de cada elemento que no se encuentre
             if (!fullscreenButton) console.warn("Esperando el botón de pantalla completa.");
             if (!mainContainer) console.warn("Esperando el contenedor principal ('#main-flex-container').");
             if (!sectionA) console.warn("Esperando la sección A ('.section-a').");
@@ -385,10 +379,14 @@ function setupFullscreenBehavior(iframeDocument) {
         }
     });
 
-    // Iniciamos el observador para monitorear cambios en el iframe
     observer.observe(iframeDocument.body, { childList: true, subtree: true });
 }
 
+// Función para ajustar la altura de sectionB según la altura de sectionA
+function adjustSectionBHeight(sectionA, sectionB) {
+    const sectionAHeight = sectionA.clientHeight;
+    sectionB.style.height = `${sectionAHeight}px`;
+}
 
 
 
